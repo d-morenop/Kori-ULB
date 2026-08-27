@@ -12,22 +12,27 @@ REMOTE_HOST=lemaitre4
 #exp=revert_t_m20_gammas
 #exp=DIVA
 #exp=sigma_oce400  
-exp=sigma_oce075
+#exp=sigma_oce075
+exp=dutrieux2012
 
 
 # LOCAL PATHS.
-path_exe=$path_kori/exe/thwaites         # Thwaites.
-#path_exe=$path_kori/exe/CalvingMIP      # CalvingMIP.
+path_scr=$path_kori/calibration
+#path_exe=$path_kori/exe/thwaites         # Thwaites.
+#path_exe=$path_kori/exe/CalvingMIP       # CalvingMIP.
+path_exe=$path_kori/exe/calibration       # Calibration.
 
 # Deterministic.
 #path_param=$path_exe/$REMOTE_HOST/deter/$exp     
 
 # Stochastic.
-path_param=$path_exe/$REMOTE_HOST/stoch/tau_To_001/$exp     
+#path_param=$path_exe/$REMOTE_HOST/stoch/tau_To_001/$exp     
 
 # Initialization.
-#path_param=$path_exe/$REMOTE_HOST/init/$exp    
+#path_param=$path_exe/$REMOTE_HOST/init/$exp  
 
+# Calibration.
+path_param=$path_exe/$REMOTE_HOST/$exp
 
 
 # CLUSTER PATHS.
@@ -37,7 +42,7 @@ path_parent=/globalscratch/ulb/glaciol/dmoreno/Kori-ULB/exe/ensembles
 #path_cluster=$path_parent/thwaites/deter
 
 # Stochastic.
-path_cluster=$path_parent/thwaites/stoch/tau_To_001
+#path_cluster=$path_parent/thwaites/stoch/tau_To_001
 
 # Initialization.
 #path_cluster=$path_parent/thwaites/init
@@ -45,16 +50,22 @@ path_cluster=$path_parent/thwaites/stoch/tau_To_001
 # CalvingMIP. /home/daniel/models/Kori-ULB/exe/CalvingMIP
 #path_cluster=$path_parent/calvingMIP/Exp3-4/dx_2km/OceanVisc_1e10/
 
+# Calibration.
+path_cluster=$path_parent/calibration/quad_local_mean_slope_extended/$exp
+
 # Path to precompile executable.    
 path_exe_cluster=$path_parent/thwaites/precompiled
 
 
 
 # Enter path with matlab scripts to be compiled.
-cd $path_exe
+#cd $path_exe
+cd $path_scr
 
 # Compiling options: individual_file, ensemble.
-option="ensemble"  
+option="individual_file"  
+
+matlab_version="R2018b"
 
 
 ##################################################################################
@@ -64,16 +75,44 @@ if [ "$option" = "individual_file" ]; then
 echo "Compiling individual file..."
 
 # Compilation for single files.
-file_name=CaMIP_Exp3_CECI.m
-exe_name=CaMIP_Exp3_CECI
+file_name=KoriCalibration_CECI.m            # CaMIP_Exp3_CECI.m
+exe_name=KoriCalibration_CECI
 
-echo "Compiling    : $file_name"
-echo "Exe_name     : $exe_name"
-echo "path_cluster : $path_cluster"
+echo "Compiling       : $file_name"
+echo "Exe_name        : $exe_name"
+echo "Matlab version  : $matlab_version"
+echo "path_scr        : $path_scr"
+echo "path_exe        : $path_exe"
+echo "path_cluster    : $path_cluster"
 
-mcc -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
+
+
+case "$matlab_version" in
+    R2018b)
+        MATLAB_ROOT=/usr/local/MATLAB/R2018b
+        ;;
+    R2024b)
+        MATLAB_ROOT=/usr/local/MATLAB/R2024b
+        ;;
+    R2025b)
+        MATLAB_ROOT=/usr/local/MATLAB/R2025b
+        ;;
+    *)
+        echo "Usage: $0 R2018b|R2024b|R2025b"
+        exit 1
+        ;;
+esac
+
+#mcc -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
+#mcc -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
+
+"$MATLAB_ROOT/bin/mcc" -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
+
+
+mv $exe_name $path_exe
 ssh $REMOTE_HOST "mkdir -p $path_cluster"
-rsync -avz --progress "$exe_name" "$REMOTE_HOST:$path_cluster"
+#rsync -avz --progress "$exe_name" "$REMOTE_HOST:$path_cluster"
+rsync -avz --progress "$path_exe/$exe_name" "$REMOTE_HOST:$path_cluster"
 
 ##################################################################################
 

@@ -1,25 +1,22 @@
 function KoriCalibration
 
-    
-clear;
-close all;
-
 
 % Paths.
-addpath /home/daniel/models/Kori-ULB/subroutines/;
-addpath /home/daniel/models/Kori-ULB/;
+%addpath /home/daniel/models/Kori-ULB/subroutines/;
+%addpath /home/daniel/models/Kori-ULB/;
 
-global_path = '/home/daniel/models/Kori-ULB/ice_data/ismip7/ismip7-antarctic-ocean-forcing';
+global_path = '/globalscratch/ulb/glaciol/dmoreno/Kori-ULB/ice_data/ismip7/ismip7-antarctic-ocean-forcing';
+init_path   = '/globalscratch/ulb/glaciol/dmoreno/Kori-ULB/ice_data/ismip7/initialisation';
 
 resolution = 8;
-init_name  = ['Bedmachine',int2str(resolution),'km_v3_RACMO11km_Stal2021']; % ALREADY CROPPED!!!
+init_name  = [init_path, '/', 'Bedmachine',int2str(resolution),'km_v3_RACMO11km_Stal2021']; % ALREADY CROPPED!!!
 
 ctr.runmode     = 3;
-ctr.meltfunc    = 3; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
+ctr.meltfunc    = 23; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
 ctr.C           = 1e6;
 %gammaT          = 3e-5; % To adapt according to chosen melt scheme
 %mixedgamma      = 0; 
-%path_mixedgamma = [path_data,'kmixed_Antslope_extra.nc'];%[path_data,'kmixed_locslope_extra.nc'];
+%path_mixedgamma = [path_data,'kmixed_Antslope_extra.nc'];  %[path_data,'kmixed_locslope_extra.nc'];
 ctr.meltfac     = 1; 
 ctr.gammaTplume = 0; % needs to be defined if meltfunc=5
 
@@ -35,14 +32,6 @@ ctr.diagnostic = 1;
 %gamma = linspace(6e-5, 6e-3, n_gamma)
 %Eo          = linspace(, n_gamma)
 
-
-
-%if mixedgamma==0
-%    ctr.gammaT=gammaT;
-%else
-%    gamma_field=ncread(path_mixedgamma,'coeff_k'); % updated field computed by Clara (B24)
-%    ctr.gammaT=gamma_field';
-%end
 
 if resolution==16
     ctr.imax=351;
@@ -73,9 +62,14 @@ if ctr.meltfunc == 3
 elseif ctr.meltfunc == 23
 
     % ISMIP7 template for quad: 1.0e-5,3.6e-4
-    gammaT_0 = 1.0e-5;
+    %gammaT_0 = 1.0e-5;
+    %gammaT_f = 3.6e-4;
+    %n_gammaT = 20;
+
+    % Extended range based on ISMIP7.
+    gammaT_0 = 0.25e-5;
     gammaT_f = 3.6e-4;
-    n_gammaT = 20;
+    n_gammaT = 100;
 
     values_1 = linspace(gammaT_0, gammaT_f, n_gammaT);
 
@@ -85,7 +79,7 @@ end
 
 % OCEAN CLIM
 project = 'ISMIP7';
-ocean   = 'Dutrieux2009';    % Dataset.
+ocean   = 'Dutrieux2012';    % Dataset.
 opt     = 'warm';        % cold/warm.
 
 if isequal(project,'ISMIP7')
@@ -144,25 +138,20 @@ if isequal(project,'ISMIP7')
     full_to = [path_to, file_to];
     full_so = [path_so, file_so];
 
-    % Dimensions definition.
-    info = ncinfo(full_so,'so');
-    {info.Dimensions.Name}
-
     to = ncread(full_to, 'thetao');
     so = ncread(full_so, 'so');
     z  = ncread(full_so, 'z');
 
     size(to)
 
-    % Crop domain.
-    nISMIP = 761;
-    nKORI  = 701;
-    dn     = 0.5 * (nISMIP - nKORI);
+    To = permute(to,[2 1 3]);
+    So = permute(so,[2 1 3]);
 
-    To = to(dn+1:end-dn, dn+1:end-dn, :);
-    So = so(dn+1:end-dn, dn+1:end-dn, :);
+    % Dimensions definition.
+    info = ncinfo(full_so,'so');
+    {info.Dimensions.Name}
 
-    Melt = zeros(nISMIP, nISMIP);
+    Melt = zeros(ctr.imax, ctr.jmax);
 
     save(init_name,'To','So','-append')
 
@@ -173,39 +162,6 @@ if isequal(project,'ISMIP7')
 
 
 
-% Load data for ISMIP6 melt param
-%if ctr.meltfunc==9
-%    load([path_data,'ocean_param_',int2str(resolution),'km.mat']);
-%    fc.deltaT_basin=deltaT_basin;
-%    fc.basinNumber=basinNumber;
-%elseif ctr.meltfunc==91
-%    load([path_data,'ocean_param_slope_',int2str(resolution),'km.mat']);
-%    fc.deltaT_basin=deltaT_basin;
-%    fc.basinNumber=basinNumber;
-%end
-
-
-%if isequal(OCN_clim,'ISMIP6')
-%    load([path_data,'ISMIP6_OCEAN_OBS_CLIMATOLOGY_1995-2017_',int2str(resolution),'km.mat'],'To','So')
-%    save(init_name,'To','So','-append')
-%elseif isequal(OCN_clim,'NEMO')
-%    To=ncread([path_data,'clim-nemo_1982-2013.nc'],'thetao');
-%    To=permute(To,[2 1 3]);
-%    So=ncread([path_data,'clim-nemo_1982-2013.nc'],'so');
-%    So=permute(So,[2 1 3]);
-%    save(init_name,'To','So','-append')
-%elseif isequal(OCN_clim,'NN')
-%    To=ncread([path_data,'clim-nn_1982-2013.nc'],'thetao');
-%    To=permute(To,[2 1 3]);
-%    So=ncread([path_data,'clim-nn_1982-2013.nc'],'so');
-%    So=permute(So,[2 1 3]);
-%    save(init_name,'To','So','-append')
-%end
-
-%load([path_data,'ZBextended_',int2str(resolution),'km'],'ZB'); % make sure we use the right input basins - here Zwally
-%save(init_name,'ZB','-append')
-
-
 % Options: pico, quad_local_mean_slope
 if ctr.meltfunc == 3
 
@@ -213,12 +169,13 @@ if ctr.meltfunc == 3
 
 elseif ctr.meltfunc == 23
     
-    melt_param = 'quad_local_mean_slope';
+    %melt_param = 'quad_local_mean_slope';
+    melt_param = 'quad_local_mean_slope_extended';
 
 end
 
 % Define paths and names.
-path     = '/home/daniel/models/Kori-ULB/output/calibration/';
+path     = '/globalscratch/ulb/glaciol/dmoreno/Kori-ULB/output/calibration/';
 path_out = [path, melt_param, '/']; 
 file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
 
@@ -274,10 +231,13 @@ elseif ctr.meltfunc == 23
         
         ctr.gammaT = values_1(i);
 
-        val_1 = 1e5*values_1(i);
-
+        val_1 = 1e7*values_1(i);
 
         if val_1 < 10
+            num_1 = sprintf('000%.0f', val_1);
+        elseif val_1 < 100
+            num_1 = sprintf('00%.0f', val_1);
+        elseif val_1 < 1000
             num_1 = sprintf('0%.0f', val_1);
         else
             num_1 = sprintf('%.0f', val_1);
@@ -293,10 +253,12 @@ elseif ctr.meltfunc == 23
         S = load([file,name,'_toto'], 'Melt');
 
         % Extend grid to match ISMIP's.
-        Melt(dn+1:end-dn,dn+1:end-dn,:) = S.Melt;
+        %Melt(dn+1:end-dn,dn+1:end-dn,:) = S.Melt;
+        %Melt = S.Melt;
 
         % Store under dynamic field name
-        melt_all.(name) = Melt;
+        %melt_all.(name) = Melt;
+        melt_all.(name) = S.Melt;
 
         end
     end

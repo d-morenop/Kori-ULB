@@ -13,7 +13,8 @@ REMOTE_HOST=lemaitre4
 #exp=DIVA
 #exp=sigma_oce400  
 #exp=sigma_oce075
-exp=dutrieux2012
+# dutrieux2009, dutrieux2012, mathiot_cold, naughten_cold, zhou.
+exp=zhou
 
 
 # LOCAL PATHS.
@@ -33,6 +34,7 @@ path_exe=$path_kori/exe/calibration       # Calibration.
 
 # Calibration.
 path_param=$path_exe/$REMOTE_HOST/$exp
+init_file=/home/daniel/models/Kori-ULB/ice_data/ismip7/initialisation/Bedmachine8km_ISMIPgrid_v3_RACMO11km_Stal2021.mat
 
 
 # CLUSTER PATHS.
@@ -51,7 +53,32 @@ path_parent=/globalscratch/ulb/glaciol/dmoreno/Kori-ULB/exe/ensembles
 #path_cluster=$path_parent/calvingMIP/Exp3-4/dx_2km/OceanVisc_1e10/
 
 # Calibration.
-path_cluster=$path_parent/calibration/quad_local_mean_slope_extended/$exp
+meltfunc=26
+p="95"
+
+case "$meltfunc" in
+    23)
+        meltname=quad_local_mean_slope
+        ;;
+    24)
+        meltname=quad_local_local_slope
+        ;;
+    25)
+        meltname=quad_semi_local_mean_slope
+        ;;
+    26)
+        meltname=quad_semi_local_local_slope
+        ;;
+    *)
+        echo "Usage: $0 23|24|25|26"
+        exit 1
+        ;;
+esac
+
+
+#path_cluster=$path_parent/calibration/quad_semi_local_local_slope/$exp
+#path_cluster=$path_parent/calibration/dT/quad_semi_local_local_slope/$exp
+path_cluster=$path_parent/calibration/dT/$meltname/percentile_$p/$exp
 
 # Path to precompile executable.    
 path_exe_cluster=$path_parent/thwaites/precompiled
@@ -106,8 +133,11 @@ esac
 #mcc -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
 #mcc -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
 
-"$MATLAB_ROOT/bin/mcc" -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
+# ISMIP7 option: copy initialization in each folder as it is modified there.
+#rsync -avz --progress "$init_file" "$REMOTE_HOST:$path_cluster/"
 
+# Compile matlab file.
+"$MATLAB_ROOT/bin/mcc" -m $file_name -a $path_kori/KoriModel.m -a $path_kori_subroutines -o $exe_name
 
 mv $exe_name $path_exe
 ssh $REMOTE_HOST "mkdir -p $path_cluster"

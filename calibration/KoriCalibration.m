@@ -18,7 +18,7 @@ init_name  = ['Bedmachine',int2str(resolution),'km_ISMIPgrid_v3_RACMO11km_Stal20
 file_in = [init_path, '/', init_name];
 
 ctr.runmode     = 3;
-ctr.meltfunc    = 25; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
+ctr.meltfunc    = 23; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
 ctr.C           = 1e6;
 ctr.meltfac     = 1; 
 ctr.gammaTplume = 0; % needs to be defined if meltfunc=5
@@ -35,6 +35,12 @@ ctr.diagnostic = 1;
 %gamma = linspace(6e-5, 6e-3, n_gamma)
 %Eo    = linspace(, n_gamma)
 
+DeltaT_correction = true;
+percentile = 05;                    % Value of gammaT depending on distribution.
+n_dT = 61;                          % 31, 61.
+%dT   = linspace(-1.5, 1.5, n_dT)
+dT   = -1.5:0.05:1.5;               % Consistent with Ronja.
+
 
 if resolution==16
     ctr.imax  = 351;
@@ -47,11 +53,6 @@ elseif resolution==8
 end
 
 
-
-DeltaT_correction = true;
-n_dT = 61; % 31, 61
-%dT   = linspace(-1.5, 1.5, n_dT)
-dT   = -1.5:0.05:1.5; % Consistent with Ronja.
 
 % Define range of parameters to be calibrated.
 % pico.
@@ -206,36 +207,84 @@ elseif ctr.meltfunc == 23
     
     melt_param = 'quad_local_mean_slope';
 
+    if percentile == 5
+        p = '05';
+        K = 5.666666666666667e-05;
+    elseif percentile == 50
+        p = '50';
+        K = 0.00010000000000000002;
+    elseif percentile == 95
+        p = '95';
+        K = 0.0001577777777777778;
+    end
+
 elseif ctr.meltfunc == 24
     
     melt_param = 'quad_local_local_slope';
+    
+    if percentile == 5
+        p = '05';
+        K = 2.0555555555555558e-05;
+    elseif percentile == 50
+        p = '50';
+        K = 3.5000000000000004e-05;
+    elseif percentile == 95
+        p = '95';
+        K = 4.9444444444444446e-05;
+    end
 
 elseif ctr.meltfunc == 25
     
     melt_param = 'quad_semi_local_mean_slope';
 
+    if percentile == 5
+        p = '05';
+        K = 6.38888888888889e-05;
+    elseif percentile == 50
+        p = '50';
+        K = 0.00013250000000000002;
+    elseif percentile == 95
+        p = '95';
+        K = 0.00021194444444444448;
+    end
+
 elseif ctr.meltfunc == 26
     
     melt_param = 'quad_semi_local_local_slope';
+
+    if percentile == 5
+        p = '05';
+        K = 3.138888888888889e-05;
+    elseif percentile == 50
+        p = '50';
+        K = 5.305555555555556e-05;
+    elseif percentile == 95
+        p = '95';
+        K = 7.833333333333334e-05;
+    end
 
 end
 
 
 % Define paths and names.
 path     = '/home/daniel/models/Kori-ULB/output/calibration/dT/large_ensembles/';
-path_out = [path, melt_param, '/']; 
-file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
-
-mkdir(path_out)
+%path_out = [path, melt_param, '/']; 
+%file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+%mkdir(path_out)
 
 
 % Loop over range of parameters for a given parametrization choice.
-if DeltaT_correction == true 
+if DeltaT_correction == true
+
+    path_out = [path, melt_param, '/percentile_', p, '/', opt_name, '/']; 
+    file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', 'PERC_', p, '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+
+    mkdir(path_out)
 
     for i = 1:length(dT)
 
         % Optimal values for each param choice. 23: 1e-4, 24: 3.5e-5, 25: 1.325e-4, 26: 5.305e-5.
-        ctr.gammaT = 1.325e-4;
+        ctr.gammaT = K;
 
         To = to0 + dT(i);
         save(file_in,'To','So','-append');   % perturbed ocean state read by KoriModel
@@ -247,7 +296,6 @@ if DeltaT_correction == true
 
             if val_1 < -9
                 num_1 = sprintf('m0%.0f', abs(val_1));
-
                 if val_1 < -99
                 num_1 = sprintf('m%.0f', abs(val_1));
                 end
@@ -259,7 +307,6 @@ if DeltaT_correction == true
 
             if val_1 > 9
                 num_1 = sprintf('p0%.0f', abs(val_1));
-
                 if val_1 > 99
                 num_1 = sprintf('p%.0f', abs(val_1));
                 end
@@ -283,6 +330,11 @@ if DeltaT_correction == true
 
 
 else
+
+    path_out = [path, melt_param, '/', opt_name, '/']; 
+    file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+
+    mkdir(path_out)
 
     if ctr.meltfunc == 3
 

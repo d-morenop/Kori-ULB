@@ -18,10 +18,10 @@ init_name  = ['Bedmachine',int2str(resolution),'km_ISMIPgrid_v3_RACMO11km_Stal20
 file_in = [init_path, '/', init_name];
 
 ctr.runmode     = 3;
-ctr.meltfunc    = 23; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
+ctr.meltfunc    = 24; % melt scheme -- 3: PICO - 23: QUAD mean Ant slope (Burgard22) - 24: QUAD local slope (Burgard22)
 ctr.C           = 1e6;
 ctr.meltfac     = 1; 
-ctr.gammaTplume = 0; % needs to be defined if meltfunc=5
+ctr.gammaTplume = 0; % needs to be defined if meltfunc=7
 
 % Control.
 ctr.shelf      = 1;
@@ -35,10 +35,14 @@ ctr.diagnostic = 1;
 %gamma = linspace(6e-5, 6e-3, n_gamma)
 %Eo    = linspace(, n_gamma)
 
-DeltaT_correction = true;
-percentile = 05;                    % Value of gammaT depending on distribution.
+DeltaT_correction = false;    % Melt rates varying the ocean thermal forcing dT.
+parameters        = false;    % Melt rates for different params: K, gammaT, C, etc.
+read_opt_K_dT     = true;     % Melt rates for a given optimised set of K and dT.
+
+
+percentile = 5;                    % Value of gammaT depending on distribution.
+
 n_dT = 61;                          % 31, 61.
-%dT   = linspace(-1.5, 1.5, n_dT)
 dT   = -1.5:0.05:1.5;               % Consistent with Ronja.
 
 
@@ -112,8 +116,8 @@ end
 
 % OCEAN CLIM.
 %project = 'ISMIP7';
-ocean   = 'Zhou';    % Dataset.
-opt     = 'warm';            % cold/warm.
+ocean   = 'Naughten';    % Dataset.
+opt     = 'cold';            % cold/warm.
 
 
 
@@ -267,16 +271,12 @@ end
 
 
 % Define paths and names.
-path     = '/home/daniel/models/Kori-ULB/output/calibration/dT/large_ensembles/';
-%path_out = [path, melt_param, '/']; 
-%file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
-%mkdir(path_out)
-
+path     = '/home/daniel/models/Kori-ULB/output/calibration/optimal_K_dT/';
 
 % Loop over range of parameters for a given parametrization choice.
 if DeltaT_correction == true
 
-    path_out = [path, melt_param, '/percentile_', p, '/', opt_name, '/']; 
+    path_out = [path, melt_param, '/percentile_', p, '/']; 
     file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', 'PERC_', p, '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
 
     mkdir(path_out)
@@ -328,8 +328,9 @@ if DeltaT_correction == true
 
     end
 
+end 
 
-else
+if parameters == true
 
     path_out = [path, melt_param, '/', opt_name, '/']; 
     file     = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
@@ -415,6 +416,105 @@ else
     end
 
 end
+
+
+% Runs with both optimal K and dT previously calculated from toolbox.
+if read_opt_K_dT == true
+
+    path_out = [path, melt_param, '/opt_K_dT/']; 
+    file     = [path_out, 'dTcorr_MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+
+    mkdir(path_out)
+
+    % Load init file.
+    load(file_in)
+
+    % Optimal values for each param choice.
+    percentile_s = [5, 50, 95];
+
+    meltfunc = ctr.meltfunc;
+
+    for i = 1:3
+
+        percentile = percentile_s(i)
+
+        if ctr.meltfunc == 24
+        
+            melt_param = 'quad_local_local_slope';
+            
+            if percentile == 5
+                p  = '05';
+                K  = 2.0555555555555558e-05;
+                dT = [-0.25, 0.35, 0.15, 0.7, -0.75, 0.05, -0.35, 0.3, 1.3 ,1.5, 0.9, 0.7, 0.4, 0.3, 0.25, 0.5];
+            elseif percentile == 50
+                p  = '50';
+                K  = 3.5000000000000004e-05;
+                dT = [-0.65, 0.1, -0.05, 0.35, -1.3, -0.4, -0.8, 0.1, 0.7, 0.8, 0.35, 0.05, 0.05, 0.1, 0.05, 0.3];
+            elseif percentile == 95
+                p  = '95';
+                K  = 4.9444444444444446e-05;
+                dT = [-0.9 , -0.05, -0.2 ,  0.15, -1.5 , -0.65, -1.05,  0.  ,  0.4 , 0.3 ,  0.05, -0.3 , -0.15, -0.05,  0.  , 0.2];
+            end
+
+        end
+
+        % Assign corresponding value.
+        ctr.gammaT = K;
+
+        % Optimal dT vectors.
+        if ctr.meltfunc==23
+            if percentile==50
+                dT = [-1.  ,  0.05, -0.05,  0.25, -0.8 , -0.2 , -1.05, -0.2 , 0.25, 0.9 , -0.25, -0.85, -0.4 , -0.1 , -0.1 ,  0.1];
+            end
+        elseif ctr.meltfunc==24
+            if percentile==50
+                dT = [-0.65,  0.1 , -0.05,  0.35, -1.3 , -0.4 , -0.8 ,  0.1 , 0.7 , 0.8 ,  0.35,  0.05,  0.05,  0.1 ,  0.05,  0.3];
+            elseif percentile==5
+                dT = [-0.25,  0.35,  0.15,  0.7 , -0.75,  0.05, -0.35,  0.3 ,  1.3 , 1.5 ,  0.9 ,  0.7 ,  0.4 ,  0.3 ,  0.25,  0.5];
+            elseif percentile==95
+                dT = [-0.9 , -0.05, -0.2 ,  0.15, -1.5 , -0.65, -1.05,  0.  ,  0.4 , 0.3 ,  0.05, -0.3 , -0.15, -0.05,  0.  ,  0.2 ];
+            end
+        elseif ctr.meltfunc==25
+            if percentile==50
+                dT = [-0.4 ,  0.  , -0.05,  0.2 , -0.7 , -0.3 , -0.9 , -0.2 ,  0.2 , 0.7 , -0.15, -0.8 , -0.35, -0.1 , -0.1 ,  0.1];
+            end
+        elseif ctr.meltfunc==26
+            if percentile==50
+                dT = [-0.2 ,  0.  ,  0.  ,  0.3 , -1.2 , -0.5 , -0.8 ,  0.05,  0.45, 0.65,  0.25, -0.15,  0.  ,  0.05,  0.05,  0.25];
+            end
+        end
+
+        
+
+        % Translate into Imbie basins (18).
+        IMBIE_BASINS_to_OCEAN_BASINS = [0 1 2 3 4 5 6 7 7 8 9 10 11 12 13 14 14 15]+1;
+
+        DT = zeros(ctr.imax,ctr.jmax);
+
+        for b=1:18
+            DT(ZB==b)=dT(IMBIE_BASINS_to_OCEAN_BASINS(b));
+        end
+
+        % Save corrected temperature field.
+        save(file_in,'DT','meltfunc','percentile','-append')
+        
+        % Name of each permutation.
+        name = ['percentile', p];
+
+        % Run Kori diagnostic exp.
+        KoriModel(file_in, [file,name], ctr, fc);
+        
+        % Load Melt from source file
+        S = load([file,name,'_toto'], 'Melt');
+
+        % Store under dynamic field name
+        melt_all.(name) = S.Melt;
+
+    end
+
+
+end
+
 
 
 % Save all melt rates together.

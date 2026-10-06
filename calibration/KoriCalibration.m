@@ -116,8 +116,8 @@ end
 
 % OCEAN CLIM.
 %project = 'ISMIP7';
-ocean   = 'Naughten';    % Dataset.
-opt     = 'cold';            % cold/warm.
+ocean   = 'Dutrieux2009';    % Dataset.
+opt     = 'warm';       % cold/warm.
 
 
 
@@ -421,8 +421,18 @@ end
 % Runs with both optimal K and dT previously calculated from toolbox.
 if read_opt_K_dT == true
 
+    % Thermal forcing correction on the ocean.
+    dTcorr = true;
+
     path_out = [path, melt_param, '/opt_K_dT/']; 
-    file     = [path_out, 'dTcorr_MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+
+
+    if dTcorr == true
+        file = [path_out, 'dTcorr_MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+    else
+        file = [path_out, 'MELT_', int2str(ctr.meltfunc), '_', int2str(resolution), 'km', '_', ocean, '_', opt, '_'];
+    end
+        
 
     mkdir(path_out)
 
@@ -443,7 +453,7 @@ if read_opt_K_dT == true
             melt_param = 'quad_local_local_slope';
             
             if percentile == 5
-                p  = '05';
+                p  = '05'
                 K  = 2.0555555555555558e-05;
                 dT = [-0.25, 0.35, 0.15, 0.7, -0.75, 0.05, -0.35, 0.3, 1.3 ,1.5, 0.9, 0.7, 0.4, 0.3, 0.25, 0.5];
             elseif percentile == 50
@@ -453,38 +463,18 @@ if read_opt_K_dT == true
             elseif percentile == 95
                 p  = '95';
                 K  = 4.9444444444444446e-05;
-                dT = [-0.9 , -0.05, -0.2 ,  0.15, -1.5 , -0.65, -1.05,  0.  ,  0.4 , 0.3 ,  0.05, -0.3 , -0.15, -0.05,  0.  , 0.2];
+                dT = [-0.9, -0.05, -0.2, 0.15, -1.5, -0.65, -1.05, 0., 0.4, 0.3, 0.05, -0.3, -0.15, -0.05, 0., 0.2];
             end
 
+        end
+
+        % Comparison with no dT corrections.
+        if dTcorr == false
+            dT = 0.0 * dT;
         end
 
         % Assign corresponding value.
         ctr.gammaT = K;
-
-        % Optimal dT vectors.
-        if ctr.meltfunc==23
-            if percentile==50
-                dT = [-1.  ,  0.05, -0.05,  0.25, -0.8 , -0.2 , -1.05, -0.2 , 0.25, 0.9 , -0.25, -0.85, -0.4 , -0.1 , -0.1 ,  0.1];
-            end
-        elseif ctr.meltfunc==24
-            if percentile==50
-                dT = [-0.65,  0.1 , -0.05,  0.35, -1.3 , -0.4 , -0.8 ,  0.1 , 0.7 , 0.8 ,  0.35,  0.05,  0.05,  0.1 ,  0.05,  0.3];
-            elseif percentile==5
-                dT = [-0.25,  0.35,  0.15,  0.7 , -0.75,  0.05, -0.35,  0.3 ,  1.3 , 1.5 ,  0.9 ,  0.7 ,  0.4 ,  0.3 ,  0.25,  0.5];
-            elseif percentile==95
-                dT = [-0.9 , -0.05, -0.2 ,  0.15, -1.5 , -0.65, -1.05,  0.  ,  0.4 , 0.3 ,  0.05, -0.3 , -0.15, -0.05,  0.  ,  0.2 ];
-            end
-        elseif ctr.meltfunc==25
-            if percentile==50
-                dT = [-0.4 ,  0.  , -0.05,  0.2 , -0.7 , -0.3 , -0.9 , -0.2 ,  0.2 , 0.7 , -0.15, -0.8 , -0.35, -0.1 , -0.1 ,  0.1];
-            end
-        elseif ctr.meltfunc==26
-            if percentile==50
-                dT = [-0.2 ,  0.  ,  0.  ,  0.3 , -1.2 , -0.5 , -0.8 ,  0.05,  0.45, 0.65,  0.25, -0.15,  0.  ,  0.05,  0.05,  0.25];
-            end
-        end
-
-        
 
         % Translate into Imbie basins (18).
         IMBIE_BASINS_to_OCEAN_BASINS = [0 1 2 3 4 5 6 7 7 8 9 10 11 12 13 14 14 15]+1;
@@ -497,10 +487,28 @@ if read_opt_K_dT == true
 
         % Save corrected temperature field.
         save(file_in,'DT','meltfunc','percentile','-append')
+
+        % Load init file.
+        %load(file_in)
         
         % Name of each permutation.
         name = ['percentile', p];
 
+        % TRY THIS!
+        % Update correction.
+        %fprintf('dT range: [%g, %g]\n', min(dT), max(dT));
+        %fprintf('DT range: [%g, %g]\n', min(DT(:)), max(DT(:)));
+        %fprintf('DT mean: %g\n', mean(DT(:)));
+        %fprintf('DT std:  %g\n', std(DT(:)));
+        %fprintf('Number nonzero: %d / %d\n', nnz(DT), numel(DT));
+
+        %fc.DeltaTo=DT;
+        %fc.DeltaTo = 100 * ones(size(DT));
+
+        p
+        dT
+        %fc
+        
         % Run Kori diagnostic exp.
         KoriModel(file_in, [file,name], ctr, fc);
         

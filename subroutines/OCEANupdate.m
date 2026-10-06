@@ -1,4 +1,4 @@
-function [Tof,Sof,TFf,cnt_ocn,snp_ocn]=OCEANupdate(fc,time,cnt,So0, ...
+function [Tof,Sof,TFf,cnt_ocn,snp_ocn,fc]=OCEANupdate(fc,time,cnt,So0, ...
     To0,Tof,Sof,TFf,cnt_ocn,snp_ocn)
 
 % Kori-ULB
@@ -33,6 +33,10 @@ function [Tof,Sof,TFf,cnt_ocn,snp_ocn]=OCEANupdate(fc,time,cnt,So0, ...
                         Sof=So0;
                     end
                 end
+                if any(ismember(fields(fc),'ocn_ShelfCollapse_fname'))
+                    load([fc.ocn_ShelfCollapse_fname,num2str(snp_ocn,'%03i')]);
+                    fc.ShelfCollapse=double(mask_collapse);
+                end
                 snp_ocn=snp_ocn+1;
             else % If forcing shorter than simulation time
                 if snp_ocn==fc.ocn_snapshots+1
@@ -61,7 +65,15 @@ function [Tof,Sof,TFf,cnt_ocn,snp_ocn]=OCEANupdate(fc,time,cnt,So0, ...
                         Sof=So0;
                     end
                 end
+                if any(ismember(fields(fc),'ocn_ShelfCollapse_fname'))
+                    load([fc.ocn_ShelfCollapse_fname,num2str(snp_ocn,'%03i')]);
+                    fc.ShelfCollapse=double(mask_collapse);
+                end
                 snp_ocn=snp_ocn+1;
+            end
+            % Add temperature correction field if provided
+            if any(ismember(fields(fc),'ToCorr'))
+                Tof=Tof+fc.ToCorr;
             end
         end
         cnt_ocn=cnt_ocn+1;
@@ -70,8 +82,10 @@ function [Tof,Sof,TFf,cnt_ocn,snp_ocn]=OCEANupdate(fc,time,cnt,So0, ...
         TFf=false;
         Tof=To0+fc.DeltaTo(cnt); % simplified forcing otherwise
         Sof=So0;
+        % Add temperature correction field if provided
+        if any(ismember(fields(fc),'ToCorr'))
+            Tof=Tof+fc.ToCorr;
+        end
     end
 
 end
-
-
